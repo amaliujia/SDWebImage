@@ -9,6 +9,14 @@
 
 #import <TargetConditionals.h>
 
+#ifdef __OBJC_GC__
+#error SDWebImage does not support Objective-C Garbage Collection
+#endif
+
+#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_5_0
+#error SDWebImage doesn't support Deployement Target version < 5.0
+#endif
+
 #if !TARGET_OS_IPHONE
 #import <AppKit/AppKit.h>
 #ifndef UIImage
@@ -18,58 +26,43 @@
 #define UIImageView NSImageView
 #endif
 #else
+
 #import <UIKit/UIKit.h>
+
 #endif
 
-#if ! __has_feature(objc_arc)
-#define SDWIAutorelease(__v) ([__v autorelease]);
-#define SDWIReturnAutoreleased SDWIAutorelease
+#ifndef NS_ENUM
+#define NS_ENUM(_type, _name) enum _name : _type _name; enum _name : _type
+#endif
 
-#define SDWIRetain(__v) ([__v retain]);
-#define SDWIReturnRetained SDWIRetain
+#ifndef NS_OPTIONS
+#define NS_OPTIONS(_type, _name) enum _name : _type _name; enum _name : _type
+#endif
 
-#define SDWIRelease(__v) ([__v release]);
-#define SDWISafeRelease(__v) ([__v release], __v = nil);
-#define SDWISuperDealoc [super dealloc];
-
-#define SDWIWeak
+#if OS_OBJECT_USE_OBJC
+    #undef SDDispatchQueueRelease
+    #undef SDDispatchQueueSetterSementics
+    #define SDDispatchQueueRelease(q)
+    #define SDDispatchQueueSetterSementics strong
 #else
-// -fobjc-arc
-#define SDWIAutorelease(__v)
-#define SDWIReturnAutoreleased(__v) (__v)
-
-#define SDWIRetain(__v)
-#define SDWIReturnRetained(__v) (__v)
-
-#define SDWIRelease(__v)
-#define SDWISafeRelease(__v) (__v = nil);
-#define SDWISuperDealoc
-
-#define SDWIWeak __unsafe_unretained
+#undef SDDispatchQueueRelease
+#undef SDDispatchQueueSetterSementics
+#define SDDispatchQueueRelease(q) (dispatch_release(q))
+#define SDDispatchQueueSetterSementics assign
 #endif
 
+extern UIImage *SDScaledImageForKey(NSString *key, UIImage *image);
 
-NS_INLINE UIImage *SDScaledImageForPath(NSString *path, NSObject *imageOrData)
-{
-    if (!imageOrData)
-    {
-        return nil;
-    }
+typedef void(^SDWebImageNoParamsBlock)();
 
-    UIImage *image = nil;
-    if ([imageOrData isKindOfClass:[NSData class]])
-    {
-        image = [[UIImage alloc] initWithData:(NSData *)imageOrData];
-    }
-    else if ([imageOrData isKindOfClass:[UIImage class]])
-    {
-        image = SDWIReturnRetained((UIImage *)imageOrData);
-    }
-    else
-    {
-        return nil;
+#define dispatch_main_sync_safe(block)\
+    if ([NSThread isMainThread]) {\
+        block();\
+    } else {\
+        dispatch_sync(dispatch_get_main_queue(), block);\
     }
 
+<<<<<<< HEAD
     if ([[UIScreen mainScreen] respondsToSelector:@selector(scale)])
     {
         CGFloat scale = 1.0;
@@ -86,7 +79,11 @@ NS_INLINE UIImage *SDScaledImageForPath(NSString *path, NSObject *imageOrData)
         UIImage *scaledImage = [[UIImage alloc] initWithCGImage:image.CGImage scale:scale orientation:image.imageOrientation];
         SDWISafeRelease(image)
         image = scaledImage;
+=======
+#define dispatch_main_async_safe(block)\
+    if ([NSThread isMainThread]) {\
+        block();\
+    } else {\
+        dispatch_async(dispatch_get_main_queue(), block);\
+>>>>>>> 0db489b32e948cb6f79446b26c0a406445d951e7
     }
-
-    return SDWIReturnAutoreleased(image);
-}
